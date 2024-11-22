@@ -9,7 +9,6 @@ use nix::unistd::getpid;
 use nix::unistd::{chdir, chroot};
 use std::process::{Command, Stdio};
 use std::path::Path;
-use std::ffi::CString;
 
 fn main() {
     println!("Parent PID: {}", getpid());
@@ -48,6 +47,11 @@ fn main() {
         let _ = umount(sys_path);
     }
 }
+
+/// Create new hierarchy and cgroup. This way the cgroup isn't conflicting with the current hierarchy
+/// Set memory and cpu limits based on parameters
+///
+/// Return valid cgroup
 fn setup_groups(
     name: &str,
     mem_limit_bytes: i64,
@@ -109,6 +113,8 @@ fn setup_mounts(new_root: &Path) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Mount important filesystems like /proc and /sys
+/// Change root and place yourself in /
 fn enter_chroot(new_root: &Path) -> Result<(), Box<dyn std::error::Error>> {
     if let Err(e) = setup_mounts(new_root) {
         eprintln!("Failed to setup mounts: {}", e);
@@ -128,6 +134,10 @@ fn enter_chroot(new_root: &Path) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// This is the child routine passed to Clone::()
+/// After setting up our environment and changing our root
+/// we start up an interactive bash shell. Finally, we can add our shells pid to
+/// our newly created cgroup to make use of those resource restrictions we set above.
 fn child_func() -> isize {
     println!("running new shell with PID: {}\n", getpid());
     let new_root = Path::new("/tmp/test_fs");
