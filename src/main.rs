@@ -1,14 +1,12 @@
-use cgroups_rs::{
-    cgroup_builder::*, cpu::CpuController, memory::MemController, Cgroup,
-};
+use cgroups_rs::{cgroup_builder::*, cpu::CpuController, memory::MemController, Cgroup};
 use nix::mount::{mount, umount, MsFlags};
 use nix::sched::{clone, CloneFlags};
 use nix::sys::signal::Signal;
 use nix::sys::wait::waitpid;
 use nix::unistd::getpid;
 use nix::unistd::{chdir, chroot};
-use std::process::{Command, Stdio};
 use std::path::Path;
+use std::process::{Command, Stdio};
 
 fn main() {
     println!("Parent PID: {}", getpid());
@@ -62,10 +60,14 @@ fn setup_groups(
     let hierarchy = cgroups_rs::hierarchies::auto();
     let cgroup: Cgroup = CgroupBuilder::new(name).build(hierarchy)?;
 
-    let memory_controller = cgroup.controller_of::<MemController>().ok_or("Failed to get memory controller")?;
+    let memory_controller = cgroup
+        .controller_of::<MemController>()
+        .ok_or("Failed to get memory controller")?;
     memory_controller.set_limit(mem_limit_bytes)?;
 
-    let cpu_controller = cgroup.controller_of::<CpuController>().ok_or("Failed to get cpu controller")?;
+    let cpu_controller = cgroup
+        .controller_of::<CpuController>()
+        .ok_or("Failed to get cpu controller")?;
     cpu_controller.set_cfs_quota(cpu_quota)?;
     cpu_controller.set_cfs_period(cpu_period)?;
 
@@ -84,7 +86,7 @@ fn setup_mounts(new_root: &Path) -> Result<(), Box<dyn std::error::Error>> {
         &sys_path,
         Some("sysfs"),
         MsFlags::empty(),
-        None::<&str>
+        None::<&str>,
     )?;
 
     // Create and mount important sysfs subdirectories
@@ -97,7 +99,7 @@ fn setup_mounts(new_root: &Path) -> Result<(), Box<dyn std::error::Error>> {
         &sys_fs_cgroup,
         Some("cgroup2"),
         MsFlags::empty(),
-        None::<&str>
+        None::<&str>,
     )?;
 
     // Mount procfs
@@ -107,7 +109,7 @@ fn setup_mounts(new_root: &Path) -> Result<(), Box<dyn std::error::Error>> {
         &proc_path,
         Some("proc"),
         MsFlags::empty(),
-        None::<&str>
+        None::<&str>,
     )?;
 
     Ok(())
@@ -146,11 +148,11 @@ fn child_func() -> isize {
         eprintln!("Failed to setup chroot shit: {}", e);
         return 1;
     }
-    let cgroup = match setup_groups("my_container", 1024*1024*4, 50000, 100000) {
+    let cgroup = match setup_groups("my_container", 1024 * 1024 * 4, 50000, 100000) {
         Err(e) => {
             eprintln!("Failed to setup some group: {}", e);
             return 1;
-        },
+        }
         Ok(group) => group,
     };
 
